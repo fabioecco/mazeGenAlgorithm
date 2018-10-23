@@ -1,0 +1,145 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class CellProperties : MonoBehaviour {
+    MazeCreator mazeScriptRef;
+    public GameObject leftWall, downWall, rightWall, upWall;
+    public GameObject leftCell, downCell, rightCell, upCell;
+    List<GameObject> neighbours = new List<GameObject>();
+    public float xMazeRef, yMazeRef;
+    public int cellID;
+    public bool mazeReady = false;
+    // backtracking
+    public bool currentCell = false;
+    public bool visited = false;
+    int randomNeighbour;
+    GameObject outOfBounds;
+    public GameObject[] totalCellsRef;
+    int steps = 1;
+
+    // Use this for initialization
+    void Start () {
+        outOfBounds = (GameObject)Resources.Load("Token");
+        mazeScriptRef = GameObject.FindObjectOfType<MazeCreator>();
+        // Make the initial cell the current cell and mark it as visited
+        if (gameObject.name == "Cell0")
+        {
+            currentCell = true;
+            visited = true;
+            mazeScriptRef.lastCellVisited.Add(gameObject);
+        }
+        if (mazeReady) getNeighbours();
+	}
+	
+	// Update is called once per frame
+	void Update () {
+        if (currentCell) Backtrack();
+
+    }
+
+    public void getNeighbours()
+    {
+        if (cellID % xMazeRef == 0)
+        {
+            // first column, no left neighbour
+            leftCell = outOfBounds;
+        }
+        else
+        {
+            leftCell = totalCellsRef[cellID - 1];
+        }
+
+        if ((cellID + 1) % xMazeRef == 0)
+        {
+            // last column, no right neighbour
+            rightCell = outOfBounds;
+        }
+        else
+        {
+            rightCell = totalCellsRef[cellID + 1];
+        }
+
+        if (cellID >= 0 && cellID < xMazeRef)
+        {
+            // first row, no down neighbour
+            downCell = outOfBounds;
+        }
+        else
+        {
+            downCell = totalCellsRef[Mathf.RoundToInt(cellID - xMazeRef)];
+        }
+
+        if (cellID >= ((xMazeRef * yMazeRef) - xMazeRef) && cellID < xMazeRef * yMazeRef)
+        {
+            // last row, no up neighbour
+            upCell = outOfBounds;
+        }
+        else
+        {
+            upCell = totalCellsRef[Mathf.RoundToInt(cellID + xMazeRef)];
+        }
+
+        neighbours.Add(leftCell);
+        neighbours.Add(downCell);
+        neighbours.Add(rightCell);
+        neighbours.Add(upCell);
+    }
+
+    public void Backtrack()
+    {
+        // While there are unvisited cells
+        int totalUnvisited = 0;
+        foreach (GameObject cell in totalCellsRef)
+        {
+            if (!cell.GetComponent<CellProperties>().visited) totalUnvisited++;
+        }
+        if (totalUnvisited == 0)
+        {
+            currentCell = false;
+            for (int i = totalCellsRef.Length; i > 0; i--)
+            {
+                Destroy(totalCellsRef[i - 1].gameObject);
+            }
+            return;
+        }
+
+        // If the current cell has any neighbours which have not been visited
+        int cellsBlocked = 0;
+        if (leftCell == outOfBounds || leftCell.GetComponent<CellProperties>().visited) cellsBlocked++;
+        if (downCell == outOfBounds || downCell.GetComponent<CellProperties>().visited) cellsBlocked++;
+        if (rightCell == outOfBounds || rightCell.GetComponent<CellProperties>().visited) cellsBlocked++;
+        if (upCell == outOfBounds || upCell.GetComponent<CellProperties>().visited) cellsBlocked++;
+        if (cellsBlocked == 4)
+        {
+            // step back
+            currentCell = false;
+            mazeScriptRef.lastCellVisited[(mazeScriptRef.lastCellVisited.Count - steps)].GetComponent<CellProperties>().currentCell = true;
+            steps++;
+            return;
+        }
+
+        /*
+         * Choose randomly one of the unvisited neighbours
+         * Push the current cell to the stack
+         * Remove the wall between the current cell and the chosen cell
+         * Make the chosen cell the current cell and mark it as visited
+         */
+        randomNeighbour = Mathf.RoundToInt(Random.Range(0f, 3f)); // 0 left, 1 down, 2 right, 3 up
+        if (neighbours[randomNeighbour] != outOfBounds)
+        {
+            if (!neighbours[randomNeighbour].GetComponent<CellProperties>().visited)
+            {
+                mazeScriptRef.lastCellVisited.Add(gameObject);
+                currentCell = false;
+                if (randomNeighbour == 0 && leftWall != null) Destroy(leftWall);
+                if (randomNeighbour == 1 && downWall != null) Destroy(downWall);
+                if (randomNeighbour == 2 && rightWall != null) Destroy(rightWall);
+                if (randomNeighbour == 3 && upWall != null) Destroy(upWall);
+                neighbours[randomNeighbour].GetComponent<CellProperties>().visited = true;
+                neighbours[randomNeighbour].GetComponent<CellProperties>().currentCell = true;
+            }
+        }
+    }
+
+}
